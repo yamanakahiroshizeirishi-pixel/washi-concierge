@@ -1,0 +1,12 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "washi-concierge",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "dev"],
+      "port": 3000,
+      "cwd": "C:\\Users\\yaman\\OneDrive\\デスクトップ\\小売り社員claudecode\\washi-concierge"
+    }
+  ]
+}
