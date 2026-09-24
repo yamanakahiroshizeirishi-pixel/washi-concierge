@@ -21,7 +21,17 @@
 - **CSV一括登録**（エラー行と理由を表示）／CSVエクスポート／テンプレートDL
 - AI相談履歴の閲覧（**推薦点数と内訳**も確認可）
 - 分析：用途別相談件数／商品別提案件数／購入クリック数／**AIが回答できなかった相談**
-- 設定：店名・アプリ名・ロゴ・「AIが回答するときの注意事項」の変更
+- 設定：店名・アプリ名・ロゴ・「AIが回答するときの注意事項」・**会計年度の開始月**の変更
+
+### 在庫管理・発注管理（`/admin/inventory`、`/admin/purchase-orders`）
+添付いただいたエクセルの在庫表（繰越→入荷→出荷→返品→在庫→期末棚卸高）と同じ考え方で、月次の入出庫を記録・集計します。
+
+- **在庫品目の管理** (`/admin/inventory`) — 品目ごとに仕入価格・仕入先・残りわずかのしきい値を登録。現在庫を一覧表示。
+- **出荷先チャンネル管理** (`/admin/inventory/channels`) — 支店・卸先・ECなどの出荷先と、テスター・商品見本など「internal（社内消化）」チャンネルを登録。internalチャンネルへの出荷は見本品費として自動集計されます。
+- **月次在庫台帳** (`/admin/inventory/[品目]`) — 繰越・入荷・チャンネル別出荷・返品（戻り分／処分／テスター使用）・在庫・見本品費・商品廃棄損・期末商品棚卸高（税込）を会計年度単位の表で表示。入出庫はダイアログから都度記録。
+- **発注書の取り込み** (`/admin/purchase-orders/upload`) — 発注書（CSV／Excel、列名は「商品名」「数量」等の表記ゆれを吸収）をアップロードすると、登録済み品目に自動でひも付け。**在庫が足りている行はその場で自動出荷登録**されます。
+- **発注書ごとの判断** (`/admin/purchase-orders/[発注]`) — 在庫不足の明細ごとに「全量出荷する」「在庫分だけ出荷して残りを来月にまわす」「出荷せず全量を来月にまわす」を判断できます。
+- **来月繰り越し一覧** (`/admin/purchase-orders/backorders`) — 在庫不足で来月にまわした発注明細をまとめて表示し、入荷後にチェックを付けて**まとめて出荷登録**できます（複数の発注をまとめて処理可能。まだ足りなければ再度来月へ繰り越されます）。
 
 ---
 
@@ -51,10 +61,13 @@ src/
     calc.ts                 包装/障子/壁面の枚数計算
     ai/provider.ts          generateConciergeResponse 等（mock/anthropic/openai/gemini）
     product-schema.ts       商品入力・CSVのZodスキーマ
+    inventory.ts            在庫台帳の集計ロジック・発注書ファイルのパース
+    inventory-schema.ts     在庫品目・チャンネル・入出庫のZodスキーマ
     supabase/               server / client クライアント
   proxy.ts                  /admin をログイン必須にする（Next.js 16 では旧 middleware.ts）
 supabase/
   migrations/0001_initial_schema.sql   スキーマ・RLS・Storage・pgvector
+  migrations/0002_inventory.sql        在庫管理・発注管理のスキーマ・RLS
   seed.sql                             デモ商品26件＋関連商品
 ```
 
@@ -92,7 +105,8 @@ cp .env.example .env.local
 Supabase プロジェクトの SQL Editor で、次の順に実行します。
 
 1. `supabase/migrations/0001_initial_schema.sql` — テーブル・RLS・Storageバケット・pgvector・`match_products()` 関数
-2. `supabase/seed.sql` — デモ商品26件と関連商品
+2. `supabase/migrations/0002_inventory.sql` — 在庫管理・発注管理のテーブルとRLS（管理者のみ読み書き可）
+3. `supabase/seed.sql` — デモ商品26件と関連商品
 
 ### 4. 管理者アカウントの作成
 

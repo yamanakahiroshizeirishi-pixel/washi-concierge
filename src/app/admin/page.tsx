@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 export default async function AdminDashboard() {
   const supabase = await createClient();
 
-  const [products, published, logs, clicks, unanswered] = await Promise.all([
+  const [products, published, logs, clicks, unanswered, pendingOrders] = await Promise.all([
     supabase.from("products").select("id", { count: "exact", head: true }),
     supabase
       .from("products")
@@ -19,6 +19,10 @@ export default async function AdminDashboard() {
       .from("consultation_logs")
       .select("id", { count: "exact", head: true })
       .eq("could_not_answer", true),
+    supabase
+      .from("purchase_order_lines")
+      .select("id", { count: "exact", head: true })
+      .eq("status", "pending"),
   ]);
 
   const lowStock = await supabase
@@ -40,6 +44,11 @@ export default async function AdminDashboard() {
       label: "回答できなかった相談",
       value: unanswered.count ?? 0,
       href: "/admin/analytics",
+    },
+    {
+      label: "判断待ちの発注明細",
+      value: pendingOrders.count ?? 0,
+      href: "/admin/purchase-orders",
     },
   ];
 

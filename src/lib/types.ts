@@ -88,6 +88,87 @@ export type AppSettings = {
   app_name: string;
   logo_url: string | null;
   ai_notes: string | null;
+  fiscal_year_start_month: number;
+};
+
+// ============ 在庫管理・発注管理 ============
+
+export type InventoryChannel = {
+  id: string;
+  name: string;
+  channel_type: "external" | "internal";
+  display_order: number;
+  created_at: string;
+};
+
+export type InventoryItem = {
+  id: string;
+  sku: string | null;
+  name: string;
+  supplier_name: string | null;
+  purchase_price: number;
+  wholesale_price: number | null;
+  low_stock_threshold: number;
+  is_active: boolean;
+  note: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type MovementType =
+  | "incoming"
+  | "shipment"
+  | "return_in"
+  | "return_disposal"
+  | "return_tester"
+  | "disposal";
+
+export type InventoryMovement = {
+  id: string;
+  item_id: string;
+  channel_id: string | null;
+  movement_type: MovementType;
+  quantity: number;
+  occurred_on: string; // YYYY-MM-DD
+  note: string | null;
+  purchase_order_line_id: string | null;
+  created_at: string;
+};
+
+export type PurchaseOrderStatus = "draft" | "confirmed" | "closed";
+
+export type PurchaseOrder = {
+  id: string;
+  order_no: string | null;
+  channel_id: string | null;
+  order_date: string; // YYYY-MM-DD
+  status: PurchaseOrderStatus;
+  source_filename: string | null;
+  note: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type PurchaseOrderLineStatus =
+  | "pending"
+  | "fulfilled"
+  | "partial"
+  | "carried_over";
+
+export type PurchaseOrderLine = {
+  id: string;
+  purchase_order_id: string;
+  item_id: string | null;
+  raw_item_name: string;
+  ordered_qty: number;
+  fulfilled_qty: number;
+  carried_over_qty: number;
+  status: PurchaseOrderLineStatus;
+  target_month: string | null; // YYYY-MM-01
+  decision_note: string | null;
+  decided_at: string | null;
+  shipment_movement_id: string | null;
+  created_at: string;
 };
 
 export type ConsultationLog = {

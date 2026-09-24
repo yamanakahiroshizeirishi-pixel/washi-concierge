@@ -13,6 +13,7 @@ export function SettingsClient() {
   const [appName, setAppName] = useState("");
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
   const [aiNotes, setAiNotes] = useState("");
+  const [fiscalYearStartMonth, setFiscalYearStartMonth] = useState(10);
   const [message, setMessage] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -30,6 +31,7 @@ export function SettingsClient() {
         setAppName(data.app_name ?? "");
         setLogoUrl(data.logo_url);
         setAiNotes(data.ai_notes ?? "");
+        setFiscalYearStartMonth(data.fiscal_year_start_month ?? 10);
       }
     })();
   }, []);
@@ -69,6 +71,7 @@ export function SettingsClient() {
         app_name: appName || "AI和紙コンシェルジュ",
         logo_url: logoUrl,
         ai_notes: aiNotes || null,
+        fiscal_year_start_month: fiscalYearStartMonth,
       })
       .eq("id", 1);
     setMessage(
@@ -158,6 +161,30 @@ export function SettingsClient() {
             className="bg-card"
             aria-label="AIへの注意事項"
           />
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">在庫管理</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-2">
+          <Label htmlFor="fiscal-year-start-month">会計年度の開始月</Label>
+          <p className="text-sm text-muted-foreground">
+            在庫台帳（在庫管理の月次表）の年度区切りに使います。例: 10月始まりなら10月〜翌9月が1年度になります。
+          </p>
+          <select
+            id="fiscal-year-start-month"
+            value={fiscalYearStartMonth}
+            onChange={(e) => setFiscalYearStartMonth(Number(e.target.value))}
+            className="h-9 w-32 rounded-lg border bg-card px-3 text-sm"
+          >
+            {Array.from({ length: 12 }, (_, i) => i + 1).map((m) => (
+              <option key={m} value={m}>
+                {m}月
+              </option>
+            ))}
+          </select>
         </CardContent>
       </Card>
 

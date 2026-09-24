@@ -7,6 +7,7 @@ const DEFAULTS: AppSettings = {
   app_name: "AI和紙コンシェルジュ",
   logo_url: null,
   ai_notes: null,
+  fiscal_year_start_month: 10,
 };
 
 // アプリ設定（店名・アプリ名・ロゴ）。取得に失敗しても画面が止まらないよう既定値を返す

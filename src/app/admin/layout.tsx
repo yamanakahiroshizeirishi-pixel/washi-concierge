@@ -7,6 +7,8 @@ const NAV = [
   { href: "/admin", label: "ダッシュボード" },
   { href: "/admin/products", label: "商品管理" },
   { href: "/admin/products/csv", label: "CSV登録" },
+  { href: "/admin/inventory", label: "在庫管理" },
+  { href: "/admin/purchase-orders", label: "発注管理" },
   { href: "/admin/logs", label: "相談履歴" },
   { href: "/admin/analytics", label: "分析" },
   { href: "/admin/settings", label: "設定" },
