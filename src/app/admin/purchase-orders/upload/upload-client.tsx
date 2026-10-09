@@ -30,6 +30,25 @@ type PreviewRow = {
   matchedItemId: string;
 };
 
+type AiReadLine = {
+  item_name: string;
+  quantity: number;
+  unit_price: number | null;
+  amount: number | null;
+  product_code: string | null;
+  matched_name: string | null;
+  candidates: string[];
+};
+
+type AiReadResult = {
+  order_from: string | null;
+  ship_to: string | null;
+  order_no: string | null;
+  order_date: string | null;
+  due_date: string | null;
+  lines: AiReadLine[];
+};
+
 export function UploadClient() {
   const router = useRouter();
   const [channels, setChannels] = useState<InventoryChannel[]>([]);
@@ -43,6 +62,8 @@ export function UploadClient() {
   const [parseError, setParseError] = useState<string | null>(null);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [aiReading, setAiReading] = useState(false);
+  const [aiStatus, setAiStatus] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     const supabase = createClient();
@@ -79,11 +100,81 @@ export function UploadClient() {
     );
   };
 
+  const buildPreviewFromAi = (result: AiReadResult) => {
+    if (result.lines.length === 0) {
+      setParseError("AIでも明細を読み取れませんでした。「行を手動で追加」から入力してください。");
+      setRows([]);
+      return;
+    }
+    setParseError(null);
+    setRows(
+      result.lines.map((l, i) => {
+        const byMatchedName = l.matched_name
+          ? items.find((it) => it.name === l.matched_name)
+          : undefined;
+        const matched = byMatchedName ?? matchItemByName(l.item_name, items);
+        const noteParts = [
+          l.product_code ? `商品コード ${l.product_code}` : null,
+          l.unit_price != null ? `単価 ${l.unit_price.toLocaleString("ja-JP")}円` : null,
+          !matched && l.candidates.length > 0 ? `候補: ${l.candidates.join(" / ")}` : null,
+        ].filter(Boolean);
+        return {
+          key: `ai-${Date.now()}-${i}`,
+          item_name: l.item_name,
+          quantity: l.quantity,
+          note: noteParts.join("　"),
+          matchedItemId: matched?.id ?? "",
+        };
+      })
+    );
+    if (result.order_no && !orderNo) setOrderNo(result.order_no);
+    if (result.order_date && /^\d{4}-\d{2}-\d{2}$/.test(result.order_date)) {
+      setOrderDate(result.order_date);
+    }
+    if (result.order_from && !channelId) {
+      const match = channels.find(
+        (c) => result.order_from!.includes(c.name) || c.name.includes(result.order_from!)
+      );
+      if (match) setChannelId(match.id);
+    }
+  };
+
+  const handleAiFile = async (file: File) => {
+    setAiReading(true);
+    setParseError(null);
+    setAiStatus(`${file.name}：AIが画像から明細を読み取っています…（数十秒かかることがあります）`);
+    try {
+      const form = new FormData();
+      form.append("file", file);
+      form.append("item_names", JSON.stringify(items.map((it) => it.name)));
+      const res = await fetch("/api/purchase-orders/read", { method: "POST", body: form });
+      const data = await res.json();
+      if (!res.ok) {
+        setParseError(data?.error ?? "AIでの読み取りに失敗しました。");
+        setRows([]);
+        return;
+      }
+      buildPreviewFromAi(data as AiReadResult);
+      setAiStatus(null);
+    } catch (e) {
+      setParseError(
+        `AIでの読み取り中にエラーが発生しました: ${e instanceof Error ? e.message : ""}`
+      );
+    } finally {
+      setAiReading(false);
+      setAiStatus(null);
+    }
+  };
+
   const handleFile = (file: File) => {
     setFileName(file.name);
     setParseError(null);
     const ext = file.name.split(".").pop()?.toLowerCase();
-    if (ext === "csv") {
+    const isImage = /^image\//.test(file.type) || ["jpg", "jpeg", "png", "webp"].includes(ext ?? "");
+    const isPdf = ext === "pdf" || file.type === "application/pdf";
+    if (isImage || isPdf) {
+      handleAiFile(file);
+    } else if (ext === "csv") {
       Papa.parse<Record<string, unknown>>(file, {
         header: true,
         skipEmptyLines: true,
@@ -289,7 +380,7 @@ export function UploadClient() {
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">発注書ファイル（CSV / Excel）</CardTitle>
+          <CardTitle className="text-base">発注書ファイル（CSV / Excel / PDF・画像をAIで読み取り）</CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
           <p className="text-sm text-muted-foreground">
@@ -297,10 +388,13 @@ export function UploadClient() {
             登録済みの在庫品目と商品名が一致した行は自動でひも付きます。
             在庫が足りている行はこの画面での確定と同時に出荷登録され、
             足りない行は次の画面で「今回出荷できる分だけ出荷して残りを来月にまわす」などを判断できます。
+            スキャン・撮影したPDFや画像（JPEG/PNG）を選んだ場合は、サーバー側のAI（Claude）が
+            画像から品名・単価・発注数を直接読み取ります。読み取り結果は必ず確認・修正してください。
           </p>
           <Input
             type="file"
-            accept=".csv,text/csv,.xlsx,.xls,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+            accept=".csv,text/csv,.xlsx,.xls,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,.pdf,application/pdf,image/jpeg,image/png,image/webp"
+            disabled={aiReading}
             onChange={(e) => {
               const f = e.target.files?.[0];
               if (f) handleFile(f);
@@ -310,8 +404,9 @@ export function UploadClient() {
             aria-label="発注書ファイルを選択"
           />
           {fileName && <p className="text-sm">選択中のファイル: {fileName}</p>}
+          {aiStatus && <p className="text-sm text-muted-foreground">{aiStatus}</p>}
           {parseError && (
-            <p className="rounded-md bg-destructive/10 p-3 text-sm">{parseError}</p>
+            <p className="whitespace-pre-line rounded-md bg-destructive/10 p-3 text-sm">{parseError}</p>
           )}
         </CardContent>
       </Card>
